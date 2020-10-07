@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgresql-volume-claim
+  labels:
+    app: postgresql
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1G
+  storageClassName: gp2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+spec:
+  ports:
+  - port: 5432
+    protocol: TCP
+    targetPort: 5432
+  selector:
+    app: postgresql
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+spec:
+  selector:
+    matchLabels:
+      app: postgresql
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: postgresql
+    spec:
+      volumes:
+      - name: postgresql-volume
+        persistentVolumeClaim:
+          claimName: postgresql-volume-claim
+      containers:
+      - name: postgresql
+        image: debezium/example-postgres:1.3
+        imagePullPolicy: Always
+        env:
+        - name: POSTGRES_USER
+          value: postgresql
+        - name: POSTGRES_PASSWORD
+          value: postgresql
+        - name: POSTGRES_DB
+          value: sampledb
+        volumeMounts:
+        - name: postgresql-volume
+          mountPath: /var/lib/postgresql
+          subPath: data
