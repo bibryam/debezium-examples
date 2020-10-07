@@ -1,7 +1,5 @@
 ##Debezium Demo
 
-
-###Debezium Demo
 ```
 oc login --token=*** --server=***
 
