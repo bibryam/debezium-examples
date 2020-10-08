@@ -87,7 +87,6 @@ exit
 
 ```
 
-
 ### 5. Interact with Debezium connector (optional step)
 ```
 oc exec -i my-cluster-kafka-0 -c kafka -- curl -X GET -H "Accept:application/json" -H "Content-Type:application/json" http://my-connect-cluster-connect-api:8083/connector-plugins
