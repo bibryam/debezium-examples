@@ -35,9 +35,20 @@ oc apply -f debezium-connector.yaml
 
 ```
 
-### 3. Create a database (on a separate terminal)
+### 3. Start a Kafka client for change events
+```
+oc exec -it my-cluster-kafka-0 -- /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --from-beginning \
+  --property print.key=true \
+  --topic dbserver1.public.customer
+  
+```  
+
+### 4. Start a database and change data (on a separate terminal)
 ```
 oc apply -f postgresql.yaml 
+
 /* Run the command bellow until you can connect to the database */
 oc rsh $(oc get pods -o name -l app=postgresql)
 psql -U postgresql sampledb
@@ -76,24 +87,14 @@ exit
 
 ```
 
-### 4. View captured events in a topic (on a separate terminal)
-```
-oc exec -it my-cluster-kafka-0 -- /opt/kafka/bin/kafka-console-consumer.sh \
-  --bootstrap-server localhost:9092 \
-  --from-beginning \
-  --property print.key=true \
-  --topic dbserver1.public.customer
-  
-```  
 
-### 5. Check the status of connectors (optional step)
+### 5. Interact with Debezium connector (optional step)
 ```
 oc exec -i my-cluster-kafka-0 -c kafka -- curl -X GET -H "Accept:application/json" -H "Content-Type:application/json" http://my-connect-cluster-connect-api:8083/connector-plugins
 
 oc exec -i my-cluster-kafka-0 -c kafka -- curl -X GET -H "Accept:application/json" -H "Content-Type:application/json" http://my-connect-cluster-connect-api:8083/connectors
 
-oc exec -i my-cluster-kafka-0 -c kafka -- curl -X GET -H "Accept:application/json" -H "Content-Type:application/json" \
-http://my-connect-cluster-connect-api:8083/connectors/postgresql-connector/status
+oc exec -i my-cluster-kafka-0 -c kafka -- curl -X GET -H "Accept:application/json" -H "Content-Type:application/json" http://my-connect-cluster-connect-api:8083/connectors/postgresql-connector/status
 
 oc exec -i my-cluster-kafka-0 -c kafka -- curl -X GET -H "Accept:application/json" -H "Content-Type:application/json"  http://my-connect-cluster-connect-api:8083/connectors/postgresql-connector/config
 
