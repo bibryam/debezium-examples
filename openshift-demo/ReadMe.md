@@ -1,11 +1,15 @@
 ## Debezium Demo on Openshift
+
+### 0. Log into an Openshift cluster
+
 ```
 oc login --token=*** --server=***
 
 oc new-project dbz-demo
+
 ```
 
-### Create Kafka Connect cluster
+### 1. Create Kafka Connect cluster
 ```
 oc apply -f operatorgroup.yaml
 
@@ -14,9 +18,10 @@ oc apply -f subscription.yaml
 oc apply -f kafka-cluster.yaml 
 
 oc apply -f kafka-connect.yaml
+
 ```
 
-### Download, build, deploy, start a Debezium connector
+### 2. Download, build, deploy, start a Debezium connector
 ```
 mkdir -p plugins && cd plugins
 
@@ -27,11 +32,13 @@ oc start-build my-connect-cluster-connect --from-dir=. --follow
 cd .. && rm -rf plugins
 
 oc apply -f debezium-connector.yaml
+
 ```
 
-### Create a database (on a separate terminal)
+### 3. Create a database (on a separate terminal)
 ```
 oc apply -f postgresql.yaml 
+/* Run the command bellow until you can connect to the database */
 oc rsh $(oc get pods -o name -l app=postgresql)
 psql -U postgresql sampledb
 
@@ -57,8 +64,7 @@ INSERT INTO CUSTOMER (ID,SSN,NAME) VALUES (12, 'CST01004','Jane Aire');
 INSERT INTO ADDRESS (ID, STREET, ZIP, CUSTOMER_ID) VALUES (10, 'Main St', '12345', 10);
 SELECT * FROM CUSTOMER;
 
-
-/* Wait here to apply changes */
+/* Wait here to apply changes after startic a Kafka client*/
 
 UPDATE CUSTOMER SET NAME='Anne Marie' WHERE id=13;
 DELETE FROM CUSTOMER WHERE id=13;
@@ -67,9 +73,20 @@ INSERT INTO CUSTOMER (ID,SSN,NAME) VALUES (15, 'CST01005','Alexander Bell');
 \q
 
 exit
+
 ```
 
-### Check the status of connectors
+### 4. View captured events in a topic (on a separate terminal)
+```
+oc exec -it my-cluster-kafka-0 -- /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --from-beginning \
+  --property print.key=true \
+  --topic dbserver1.public.customer
+  
+```  
+
+### 5. Check the status of connectors (optional step)
 ```
 oc exec -i my-cluster-kafka-0 -c kafka -- curl -X GET -H "Accept:application/json" -H "Content-Type:application/json" http://my-connect-cluster-connect-api:8083/connector-plugins
 
@@ -104,18 +121,11 @@ oc exec -i my-cluster-kafka-0 -c kafka -- curl -i -X PUT -H "Accept:application/
 }
 }
 EOF
+
 ```
 
-### View captured events in a topic (on a separate terminal)
-```
-oc exec -it my-cluster-kafka-0 -- /opt/kafka/bin/kafka-console-consumer.sh \
-  --bootstrap-server localhost:9092 \
-  --from-beginning \
-  --property print.key=true \
-  --topic dbserver1.public.customer
-```  
-
-### Cleanup
+### 6. Cleanup the mess
 ```  
 oc delete project dbz-demo
+
 ```  
