@@ -11,18 +11,29 @@ oc apply -f operatorgroup.yaml
 
 oc apply -f subscription.yaml 
 
-oc apply -f kafka-ephemeral-single.yaml 
+oc apply -f kafka-cluster.yaml 
 
-oc apply -f kafka-connect-s2i-single-node-kafka.yaml
+oc apply -f kafka-connect.yaml
 ```
 
-### Create a database
+### Download, build, deploy, start a Debezium connector
+```
+mkdir -p plugins && cd plugins
+
+curl https://repo1.maven.org/maven2/io/debezium/debezium-connector-postgres/1.2.0.Final/debezium-connector-postgres-1.2.0.Final-plugin.tar.gz | tar xz;
+
+oc start-build my-connect-cluster-connect --from-dir=. --follow
+
+cd .. && rm -rf plugins
+
+oc apply -f debezium-connector.yaml
+```
+
+### Create a database (on a separate terminal)
 ```
 oc apply -f postgresql.yaml 
 oc rsh $(oc get pods -o name -l app=postgresql)
 psql -U postgresql sampledb
-
-/*DROP DATABASE IF EXISTS inventory; */
 
 CREATE TABLE CUSTOMER
 (
@@ -44,39 +55,18 @@ INSERT INTO CUSTOMER (ID,SSN,NAME) VALUES (13, 'CST01002','Joseph Smith');
 INSERT INTO CUSTOMER (ID,SSN,NAME) VALUES (11, 'CST01003','Nicholas Ferguson');
 INSERT INTO CUSTOMER (ID,SSN,NAME) VALUES (12, 'CST01004','Jane Aire');
 INSERT INTO ADDRESS (ID, STREET, ZIP, CUSTOMER_ID) VALUES (10, 'Main St', '12345', 10);
-select * from CUSTOMER;
+SELECT * FROM CUSTOMER;
+
+
+/* Wait here to apply changes */
+
+UPDATE CUSTOMER SET NAME='Anne Marie' WHERE id=13;
+DELETE FROM CUSTOMER WHERE id=13;
+INSERT INTO CUSTOMER (ID,SSN,NAME) VALUES (15, 'CST01005','Alexander Bell');
+
 \q
+
 exit
-
-```
-
-### Create Kafka Connect cluster
-```
-oc apply -f operatorgroup.yaml
-
-oc apply -f subscription.yaml 
-
-oc apply -f kafka-ephemeral-single.yaml 
-
-oc apply -f kafka-connect-s2i-single-node-kafka.yaml
-```
-
-### Download and build a Debezium connector
-```
-mkdir -p plugins && cd plugins
-
-curl https://repo1.maven.org/maven2/io/debezium/debezium-connector-postgres/1.2.0.Final/debezium-connector-postgres-1.2.0.Final-plugin.tar.gz | tar xz;
-
-oc start-build my-connect-cluster-connect --from-dir=. --follow
-
-cd .. && rm -rf plugins
-```
-
-### Start Debezium connector
-```
-oc annotate kafkaconnects2is my-connect-cluster strimzi.io/use-connector-resources=true
-
-oc apply -f source-connector.yaml
 ```
 
 ### Check the status of connectors
@@ -91,7 +81,6 @@ http://my-connect-cluster-connect-api:8083/connectors/postgresql-connector/statu
 oc exec -i my-cluster-kafka-0 -c kafka -- curl -X GET -H "Accept:application/json" -H "Content-Type:application/json"  http://my-connect-cluster-connect-api:8083/connectors/postgresql-connector/config
 
 oc exec -i my-cluster-kafka-0 -c kafka -- curl -X POST -H "Accept:application/json" -H "Content-Type:application/json" http://my-connect-cluster-connect-api:8083/connectors/postgresql-connector/restart
-
 
 oc exec -i my-cluster-kafka-0 -c kafka -- curl -X PUT -H "Accept:application/json" -H "Content-Type:application/json" http://my-connect-cluster-connect-api:8083/connectors/postgresql-connector/pause
 
@@ -117,25 +106,13 @@ oc exec -i my-cluster-kafka-0 -c kafka -- curl -i -X PUT -H "Accept:application/
 EOF
 ```
 
-### View captured events (on a separate terminal)
+### View captured events in a topic (on a separate terminal)
 ```
 oc exec -it my-cluster-kafka-0 -- /opt/kafka/bin/kafka-console-consumer.sh \
   --bootstrap-server localhost:9092 \
   --from-beginning \
   --property print.key=true \
   --topic dbserver1.public.customer
-```  
-
-### Change source data and observe captured events (on a separate terminal)
-```  
-oc rsh $(oc get pods -o name -l app=postgresql)
-psql -U postgresql sampledb
-
-SELECT * FROM CUSTOMER;
-
-UPDATE CUSTOMER SET NAME='Anne Marie' WHERE id=13;
-DELETE FROM CUSTOMER WHERE id=13;
-INSERT INTO CUSTOMER (ID,SSN,NAME) VALUES (15, 'CST01005','Alexander Bell');
 ```  
 
 ### Cleanup
