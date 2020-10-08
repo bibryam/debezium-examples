@@ -25,6 +25,7 @@ oc apply -f kafka-connect.yaml
 ```
 mkdir -p plugins && cd plugins
 
+/* Optionally download Debezium library from Red Hat customer portal */
 curl https://repo1.maven.org/maven2/io/debezium/debezium-connector-postgres/1.2.0.Final/debezium-connector-postgres-1.2.0.Final-plugin.tar.gz | tar xz;
 
 oc start-build my-connect-cluster-connect --from-dir=. --follow
@@ -45,7 +46,7 @@ oc exec -it my-cluster-kafka-0 -- /opt/kafka/bin/kafka-console-consumer.sh \
   
 ```  
 
-### 4. Start a database and change data (on a separate terminal)
+### 4. Start a database and update records (on a separate terminal)
 ```
 oc apply -f postgresql.yaml 
 
@@ -75,7 +76,7 @@ INSERT INTO CUSTOMER (ID,SSN,NAME) VALUES (12, 'CST01004','Jane Aire');
 INSERT INTO ADDRESS (ID, STREET, ZIP, CUSTOMER_ID) VALUES (10, 'Main St', '12345', 10);
 SELECT * FROM CUSTOMER;
 
-/* Wait here to apply changes after startic a Kafka client*/
+/* Obsever on the Kafka client terminal the change events from Debezium */
 
 UPDATE CUSTOMER SET NAME='Anne Marie' WHERE id=13;
 DELETE FROM CUSTOMER WHERE id=13;
@@ -103,8 +104,7 @@ oc exec -i my-cluster-kafka-0 -c kafka -- curl -X PUT -H "Accept:application/jso
 
 oc exec -i my-cluster-kafka-0 -c kafka -- curl -X PUT -H "Accept:application/json" -H "Content-Type:application/json" http://my-connect-cluster-connect-api:8083/connectors/postgresql-connector/resume
 
-oc exec -i my-cluster-kafka-0 -c kafka -- curl -X DELETE -H "Accept:application/json" -H "Content-Type:application/json" \
-http://my-connect-cluster-connect-api:8083/connectors/postgresql-connector
+oc exec -i my-cluster-kafka-0 -c kafka -- curl -X DELETE -H "Accept:application/json" -H "Content-Type:application/json" http://my-connect-cluster-connect-api:8083/connectors/postgresql-connector
 
 oc exec -i my-cluster-kafka-0 -c kafka -- curl -i -X PUT -H "Accept:application/json" -H "Content-Type:application/json" http://my-connect-cluster-connect-api:8083/connectors/postgresql-connector/config/ -d @- <<'EOF'
 {

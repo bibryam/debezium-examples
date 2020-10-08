@@ -1,0 +1,15 @@
+{
+  "connector.class": "PostgresCdcSource",
+  "name": "PostgresCdcSourceConnector_0",
+  "kafka.api.key": "****************",
+  "kafka.api.secret": "****************************************************************",
+  "database.hostname": "af1f73cda412d4e728956fef0a025f2a-353520196.eu-central-1.elb.amazonaws.com",
+  "database.port": "5432",
+  "database.user": "postgresql",
+  "database.password": "**********",
+  "database.dbname": "sampledb",
+  "database.server.name": "dbserver1",
+  "plugin.name": "pgoutput",
+  "output.data.format": "JSON",
+  "tasks.max": "1"
+}
